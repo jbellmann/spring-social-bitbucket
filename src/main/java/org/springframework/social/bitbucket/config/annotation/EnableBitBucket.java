@@ -23,7 +23,6 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
-import org.springframework.context.annotation.Import;
 import org.springframework.social.bitbucket.api.BitBucket;
 import org.springframework.social.bitbucket.connect.BitBucketConnectionFactory;
 import org.springframework.social.connect.ConnectionFactoryLocator;
@@ -35,14 +34,14 @@ import org.springframework.social.connect.ConnectionRepository;
  * {@link ConnectionFactoryLocator} bean if one isn't already registered). Also
  * configures a request-scoped {@link BitBucket} bean fetched from the current
  * user's {@link ConnectionRepository}.
- * 
+ *
  * @author Eric Bottard
  */
 @Target(ElementType.TYPE)
 @Retention(RetentionPolicy.RUNTIME)
 @Documented
 @Inherited
-@Import(TwitterProviderConfigRegistrar.class)
+// @Import(TwitterProviderConfigRegistrar.class)
 public @interface EnableBitBucket {
 
     /**
