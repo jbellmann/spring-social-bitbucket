@@ -21,14 +21,22 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.springframework.core.ParameterizedTypeReference;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.ResponseEntity;
 import org.springframework.social.bitbucket.api.BitBucketChangeset;
 import org.springframework.social.bitbucket.api.BitBucketChangesets;
+import org.springframework.social.bitbucket.api.BitBucketDeployKey;
 import org.springframework.social.bitbucket.api.BitBucketDirectory;
 import org.springframework.social.bitbucket.api.BitBucketFile;
 import org.springframework.social.bitbucket.api.BitBucketRepository;
+import org.springframework.social.bitbucket.api.BitBucketService;
 import org.springframework.social.bitbucket.api.BitBucketUser;
 import org.springframework.social.bitbucket.api.RepoCreation;
 import org.springframework.social.bitbucket.api.RepoOperations;
+import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestTemplate;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
@@ -37,12 +45,14 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 public class RepoTemplate extends AbstractBitBucketOperations implements
         RepoOperations {
 
-    public RepoTemplate(RestTemplate restTemplate, boolean authorized) {
+    public RepoTemplate(final RestTemplate restTemplate,
+            final boolean authorized) {
         super(restTemplate, authorized);
     }
 
     @Override
-    public BitBucketRepository getRepository(String user, String repoSlug) {
+    public BitBucketRepository getRepository(final String user,
+            final String repoSlug) {
         return restTemplate.getForObject(
                 buildUrl("/repositories/{user}/{slug}/").toString(),
                 BitBucketRepository.class, user, repoSlug);
@@ -55,13 +65,14 @@ public class RepoTemplate extends AbstractBitBucketOperations implements
     }
 
     @Override
-    public List<BitBucketRepository> search(String query) {
+    public List<BitBucketRepository> search(final String query) {
         return restTemplate.getForObject(buildUrl("/repositories/?name={q}"),
                 SearchResultHolder.class, query).repositories;
     }
 
     @Override
-    public Map<String, BitBucketChangeset> getTags(String user, String repoSlug) {
+    public Map<String, BitBucketChangeset> getTags(final String user,
+            final String repoSlug) {
         return restTemplate.getForObject(
                 buildUrl("/repositories/{user}/{slug}/tags/").toString(),
                 Tags.class, user, repoSlug);
@@ -69,22 +80,24 @@ public class RepoTemplate extends AbstractBitBucketOperations implements
     }
 
     @Override
-    public List<BitBucketUser> getFollowers(String user, String repoSlug) {
+    public List<BitBucketUser> getFollowers(final String user,
+            final String repoSlug) {
         return restTemplate.getForObject(
                 buildUrl("/repositories/{user}/{slug}/followers/").toString(),
-                FollowersHolder.class, user, repoSlug).followers;
+                        FollowersHolder.class, user, repoSlug).followers;
     }
 
     @Override
-    public BitBucketChangesets getChangesets(String user, String repoSlug) {
+    public BitBucketChangesets getChangesets(final String user,
+            final String repoSlug) {
         return restTemplate.getForObject(
                 buildUrl("/repositories/{user}/{slug}/changesets/").toString(),
                 BitBucketChangesets.class, user, repoSlug);
     }
 
     @Override
-    public BitBucketChangesets getChangesets(String user, String repoSlug,
-            String start, int limit) {
+    public BitBucketChangesets getChangesets(final String user,
+            final String repoSlug, final String start, final int limit) {
         return restTemplate
                 .getForObject(
                         buildUrl(
@@ -94,8 +107,8 @@ public class RepoTemplate extends AbstractBitBucketOperations implements
     }
 
     @Override
-    public BitBucketDirectory getDirectory(String user, String repoSlug,
-            String revision, String path) {
+    public BitBucketDirectory getDirectory(final String user,
+            final String repoSlug, final String revision, final String path) {
         return restTemplate.getForObject(
                 buildUrl("/repositories/{user}/{slug}/src/{rev}/{path}/")
                         .toString(), BitBucketDirectory.class, user, repoSlug,
@@ -103,8 +116,8 @@ public class RepoTemplate extends AbstractBitBucketOperations implements
     }
 
     @Override
-    public BitBucketFile getFile(String user, String repoSlug, String revision,
-            String path) {
+    public BitBucketFile getFile(final String user, final String repoSlug,
+            final String revision, final String path) {
         return restTemplate.getForObject(
                 buildUrl("/repositories/{user}/{slug}/src/{rev}/{path}")
                         .toString(), BitBucketFile.class, user, repoSlug,
@@ -112,9 +125,43 @@ public class RepoTemplate extends AbstractBitBucketOperations implements
     }
 
     @Override
-    public BitBucketRepository createRepository(RepoCreation options) {
+    public BitBucketRepository createRepository(final RepoCreation options) {
         return restTemplate.postForObject(buildUrl("/repositories"), options,
                 BitBucketRepository.class);
+    }
+
+    @Override
+    public List<BitBucketDeployKey> addDeployKey(final String user,
+            final String repoSlug, final String keyContent, final String label) {
+
+        // post params
+        MultiValueMap<String, Object> postParams = new LinkedMultiValueMap<String, Object>();
+        postParams.add("key", keyContent);
+        postParams.add("label", label);
+
+        HttpEntity<MultiValueMap<String, Object>> httpEntity = new HttpEntity<MultiValueMap<String, Object>>(
+                postParams);
+
+        ResponseEntity<List<BitBucketDeployKey>> entity = restTemplate
+                .exchange(buildUrl("/repositories/{user}/{slug}/deploy-keys")
+                        .toString(), HttpMethod.POST, httpEntity, responseType,
+                        user, repoSlug);
+
+        return entity.getBody();
+    }
+
+    @Override
+    public List<BitBucketService> addService(final String user,
+            final String repoSlug, final String hookUrl) {
+
+        // post params
+        MultiValueMap<String, Object> postParams = new LinkedMultiValueMap<String, Object>();
+        postParams.add("type", "POST");
+        postParams.add("URL", hookUrl);
+
+        return restTemplate.postForObject(
+                buildUrl("/repositories/{user}/{slug}/services").toString(),
+                postParams, ServicesHolder.class, user, repoSlug).services;
     }
 
     /**
@@ -138,4 +185,20 @@ public class RepoTemplate extends AbstractBitBucketOperations implements
         private List<BitBucketRepository> repositories;
     }
 
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    private static class DeployKeysHolder {
+
+        @JsonProperty
+        private List<BitBucketDeployKey> deployKeys;
+    }
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    private static class ServicesHolder {
+
+        @JsonProperty
+        private List<BitBucketService> services;
+    }
+
+    private static final ParameterizedTypeReference<List<BitBucketDeployKey>> responseType = new ParameterizedTypeReference<List<BitBucketDeployKey>>() {
+    };
 }

@@ -21,6 +21,8 @@ import static org.springframework.http.HttpMethod.*;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.*;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.*;
 
+import java.io.UnsupportedEncodingException;
+import java.net.URLEncoder;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -30,11 +32,13 @@ import org.springframework.http.MediaType;
 import org.springframework.social.bitbucket.api.BitBucketChangeset;
 import org.springframework.social.bitbucket.api.BitBucketChangeset.FileModificationType;
 import org.springframework.social.bitbucket.api.BitBucketChangesets;
+import org.springframework.social.bitbucket.api.BitBucketDeployKey;
 import org.springframework.social.bitbucket.api.BitBucketDirectory;
 import org.springframework.social.bitbucket.api.BitBucketFile;
 import org.springframework.social.bitbucket.api.BitBucketFileMetadata;
 import org.springframework.social.bitbucket.api.BitBucketRepository;
 import org.springframework.social.bitbucket.api.BitBucketSCM;
+import org.springframework.social.bitbucket.api.BitBucketService;
 import org.springframework.social.bitbucket.api.BitBucketUser;
 import org.springframework.social.bitbucket.api.RepoCreation;
 
@@ -75,6 +79,7 @@ public class RepoTemplateTest extends BaseTemplateTest {
                 .getUserRepositories();
 
         assertEquals(3, repos.size());
+
         BitBucketRepository first = repos.iterator().next();
         assertEquals("ericbottard", first.getOwner());
         assertEquals(BitBucketSCM.git, first.getScm());
@@ -96,6 +101,7 @@ public class RepoTemplateTest extends BaseTemplateTest {
         List<BitBucketRepository> results = bitBucket.repoOperations().search(
                 "box2d");
         assertEquals(6, results.size());
+
         BitBucketRepository first = results.get(0);
         assertEquals(BitBucketSCM.hg, first.getScm());
         assertEquals("Box2DXNA", first.getName());
@@ -152,6 +158,7 @@ public class RepoTemplateTest extends BaseTemplateTest {
         List<BitBucketUser> followers = bitBucket.repoOperations()
                 .getFollowers("tortoisehg", "thg");
         assertEquals(290, followers.size());
+
         BitBucketUser first = followers.get(0);
         assertEquals(
                 "https://secure.gravatar.com/avatar/fa7ba4c8ca1f7d725f0f1bc4f2d470c2?d=identicon&s=32",
@@ -242,6 +249,7 @@ public class RepoTemplateTest extends BaseTemplateTest {
         assertThat(file.getNode(), equalTo("4fe8af1db59d"));
         assertThat(file.getPath(), equalTo("piston/utils.py"));
         assertThat(file.getData().length(), equalTo(12275));
+
         // The following makes sure that newline escapes are correcly handled
         assertThat(
                 file.getData(),
@@ -264,5 +272,51 @@ public class RepoTemplateTest extends BaseTemplateTest {
                 .createRepository(options);
 
         assertThat(repository.getName(), equalTo("mynewrepo"));
+    }
+
+    @Test
+    public void testAddDeployKey() {
+        mockServer
+                .expect(requestTo("https://api.bitbucket.org/1.0/repositories/jbellmann/testingscala/deploy-keys"))
+                .andExpect(method(POST))
+                .andExpect(
+                        content()
+                                .string("key=ssh-rsa+jldfshsdfjlsjfdlsfhls&label=siggi"))
+                .andRespond(
+                        withSuccess(jsonResource("deploy-keys"),
+                                MediaType.APPLICATION_JSON));
+
+        List<BitBucketDeployKey> result = bitBucket.repoOperations()
+                .addDeployKey("jbellmann", "testingscala",
+                        "ssh-rsa jldfshsdfjlsjfdlsfhls", "siggi");
+
+    }
+
+    @Test
+    public void testAddServiceHook() {
+        mockServer
+                .expect(requestTo("https://api.bitbucket.org/1.0/repositories/jbellmann/testingscala/services"))
+                .andExpect(method(POST))
+                .andExpect(
+                        content()
+                                .string("type=POST&URL=https%3A%2F%2Fhooks.somewhere.com"))
+                .andRespond(
+                        withSuccess(jsonResource("services"),
+                                MediaType.APPLICATION_JSON));
+
+        List<BitBucketService> result = bitBucket.repoOperations().addService(
+                "jbellmann", "testingscala", "https://hooks.somewhere.com");
+
+    }
+
+    @Test
+    public void urlEncoding() throws UnsupportedEncodingException {
+        String encoded = URLEncoder.encode("https://hooks.somewhere.com",
+                "UTF-8");
+        System.out.println(encoded);
+
+        String ssh = URLEncoder
+                .encode("ssh-rsa jldfshsdfjlsjfdlsfhls", "UTF-8");
+        System.out.println(ssh);
     }
 }
