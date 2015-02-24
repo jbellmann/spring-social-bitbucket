@@ -142,12 +142,12 @@ public class RepoTemplate extends AbstractBitBucketOperations implements
         HttpEntity<MultiValueMap<String, Object>> httpEntity = new HttpEntity<MultiValueMap<String, Object>>(
                 postParams);
 
-        ResponseEntity<List<BitBucketDeployKey>> entity = restTemplate
+        ResponseEntity<BitBucketDeployKeyHolder> entity = restTemplate
                 .exchange(buildUrl("/repositories/{user}/{slug}/deploy-keys")
-                        .toString(), HttpMethod.POST, httpEntity, responseType,
-                        user, repoSlug);
+                        .toString(), HttpMethod.POST, httpEntity,
+                        BitBucketDeployKeyHolder.class, user, repoSlug);
 
-        return entity.getBody();
+        return entity.getBody().deployKeys;
     }
 
     @Override
@@ -197,6 +197,13 @@ public class RepoTemplate extends AbstractBitBucketOperations implements
 
         @JsonProperty
         private List<BitBucketService> services;
+    }
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    private static class BitBucketDeployKeyHolder {
+
+        @JsonProperty
+        private List<BitBucketDeployKey> deployKeys;
     }
 
     private static final ParameterizedTypeReference<List<BitBucketDeployKey>> responseType = new ParameterizedTypeReference<List<BitBucketDeployKey>>() {
